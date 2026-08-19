@@ -28,20 +28,8 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
-if (existsSync(indexHtml)) {
-  app.use(express.static(dist));
-  app.use((req, res, next) => {
-    if (req.method !== "GET" || req.path.startsWith("/socket.io")) {
-      return next();
-    }
-    res.sendFile(indexHtml);
-  });
-}
-
-const users = new Map<string, { name: string; color: string }>();
-const typing = new Map<string, { name: string; color: string }>();
-
 app.get("/api/stickers", async (req, res) => {
+  res.set("Cache-Control", "no-store");
   const expression = String(req.query.expression ?? "")
     .trim()
     .slice(0, 30);
@@ -57,6 +45,23 @@ app.get("/api/stickers", async (req, res) => {
     });
   }
 });
+
+if (existsSync(indexHtml)) {
+  app.use(express.static(dist));
+  app.use((req, res, next) => {
+    if (
+      req.method !== "GET" ||
+      req.path.startsWith("/socket.io") ||
+      req.path.startsWith("/api")
+    ) {
+      return next();
+    }
+    res.sendFile(indexHtml);
+  });
+}
+
+const users = new Map<string, { name: string; color: string }>();
+const typing = new Map<string, { name: string; color: string }>();
 
 const now = () =>
   new Date().toLocaleTimeString("es-AR", {
@@ -91,7 +96,7 @@ io.on("connection", (socket) => {
     let payload: string;
     if (kind === "sticker") {
       const url = String(content ?? "");
-      if (!/^https:\/\/media\.giphy\.com\/media\/.+\.gif/.test(url)) return;
+      if (!/^https:\/\/media\d*\.giphy\.com\/media\/.+\.gif/.test(url)) return;
       payload = url;
     } else {
       const clean = String(content ?? "").trim().slice(0, 500);
