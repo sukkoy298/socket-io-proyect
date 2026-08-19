@@ -9,6 +9,8 @@
     "dev:server": "pnpm dev",
     "dev:frontend": "pnpm --dir frontend dev",
     "dev:all": "concurrently -k -n server,frontend -c blue,magenta \"pnpm dev:server\" \"pnpm dev:frontend\"",
+    "build": "tsc server/index.ts && pnpm --dir frontend build",
+    "start": "node server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

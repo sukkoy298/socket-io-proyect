@@ -1,0 +1,9 @@
+node_modules
+frontend/node_modules
+frontend/dist
+frontend/pnpm-lock.yaml
+server/*.js
+server/chat.db
+.git
+*.log
+.DS_Store

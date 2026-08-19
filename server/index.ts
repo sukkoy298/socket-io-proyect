@@ -1,6 +1,9 @@
 import express from "express";
+import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import cors from "cors";
 import morgan from "morgan";
@@ -12,9 +15,27 @@ const io = new Server(httpServer, {
   cors: { origin: "*" },
 });
 
+const dist = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "frontend",
+  "dist",
+);
+const indexHtml = join(dist, "index.html");
+
 app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
+
+if (existsSync(indexHtml)) {
+  app.use(express.static(dist));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/socket.io")) {
+      return next();
+    }
+    res.sendFile(indexHtml);
+  });
+}
 
 const users = new Map<string, { name: string; color: string }>();
 const typing = new Map<string, { name: string; color: string }>();
