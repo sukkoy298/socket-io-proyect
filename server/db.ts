@@ -23,48 +23,6 @@ db.exec(`
   )
 `);
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS messages (
-    id TEXT PRIMARY KEY,
-    user TEXT NOT NULL,
-    color TEXT NOT NULL,
-    type TEXT NOT NULL DEFAULT 'texto',
-    content TEXT NOT NULL,
-    time TEXT NOT NULL
-  )
-`);
-
-export type StoredMessage = {
-  id: string;
-  user: string;
-  color: string;
-  type: "texto" | "sticker";
-  content: string;
-  time: string;
-};
-
-export function saveMessage(message: StoredMessage) {
-  db.prepare(
-    "INSERT OR REPLACE INTO messages (id, user, color, type, content, time) VALUES (?, ?, ?, ?, ?, ?)",
-  ).run(
-    message.id,
-    message.user,
-    message.color,
-    message.type,
-    message.content,
-    message.time,
-  );
-}
-
-export function getRecentMessages(limit = 50): StoredMessage[] {
-  return db
-    .prepare(
-      "SELECT id, user, color, type, content, time FROM messages ORDER BY rowid DESC LIMIT ?",
-    )
-    .all(limit)
-    .reverse() as StoredMessage[];
-}
-
 const inUse = () =>
   db
     .prepare("SELECT color FROM users")

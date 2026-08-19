@@ -7,8 +7,7 @@ import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import cors from "cors";
 import morgan from "morgan";
-import { getOrCreateUser, getRecentMessages, saveMessage } from "./db.js";
-import { getStickers } from "./giphy.js";
+import { getOrCreateUser } from "./db.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -41,23 +40,6 @@ if (existsSync(indexHtml)) {
 const users = new Map<string, { name: string; color: string }>();
 const typing = new Map<string, { name: string; color: string }>();
 
-app.get("/api/stickers", async (req, res) => {
-  const expression = String(req.query.expression ?? "")
-    .trim()
-    .slice(0, 30);
-  if (!expression) {
-    return res.status(400).json({ error: "Falta el parámetro expression" });
-  }
-  try {
-    const stickers = await getStickers(expression);
-    res.json({ expression, stickers });
-  } catch (err) {
-    res.status(502).json({
-      error: err instanceof Error ? err.message : "No se pudo consultar Giphy",
-    });
-  }
-});
-
 const now = () =>
   new Date().toLocaleTimeString("es-AR", {
     hour: "2-digit",
@@ -78,38 +60,22 @@ io.on("connection", (socket) => {
     const user = getOrCreateUser(username);
     users.set(socket.id, user);
     socket.emit("joined", user);
-    socket.emit("chat:history", getRecentMessages());
     io.emit("system", { text: `${user.name} se unió al chat`, time: now() });
     broadcastUsers();
   });
 
-  socket.on("chat:message", ({ type, content }) => {
+  socket.on("chat:message", ({ text }) => {
+    const clean = String(text ?? "").trim().slice(0, 500);
+    if (!clean) return;
     const user = users.get(socket.id) ?? { name: "Anónimo", color: "#9aa0b3" };
-    const kind: "sticker" | "texto" =
-      type === "sticker" ? "sticker" : "texto";
-
-    let payload: string;
-    if (kind === "sticker") {
-      const url = String(content ?? "");
-      if (!/^https:\/\/media\.giphy\.com\/media\/.+\.gif/.test(url)) return;
-      payload = url;
-    } else {
-      const clean = String(content ?? "").trim().slice(0, 500);
-      if (!clean) return;
-      payload = clean;
-    }
-
     if (typing.delete(socket.id)) broadcastTyping();
-    const message = {
+    io.emit("chat:message", {
       id: randomUUID(),
       user: user.name,
       color: user.color,
-      type: kind,
-      content: payload,
+      text: clean,
       time: now(),
-    };
-    saveMessage(message);
-    io.emit("chat:message", message);
+    });
   });
 
   socket.on("typing", () => {

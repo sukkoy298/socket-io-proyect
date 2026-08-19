@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
-import { SmileyIcon, StickerPicker } from "./StickerPicker";
-import type { Sticker } from "./stickers";
 import "./App.css";
 
 const socket = io();
@@ -10,8 +8,7 @@ type ChatMessage = {
   id: string;
   user: string;
   color: string;
-  type: "texto" | "sticker";
-  content: string;
+  text: string;
   time: string;
 };
 
@@ -44,7 +41,6 @@ function App() {
   const [text, setText] = useState("");
   const [toast, setToast] = useState<Toast | null>(null);
   const [typingUsers, setTypingUsers] = useState<OnlineUser[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const usernameRef = useRef("");
   const toastTimer = useRef<number | null>(null);
@@ -68,34 +64,19 @@ function App() {
           Notification.permission === "granted"
         ) {
           const notification = new Notification(message.user, {
-            body:
-              message.type === "sticker"
-                ? "Envió un sticker"
-                : message.content,
+            body: message.text,
           });
           notification.onclick = () => window.focus();
         }
         setToast({
           user: message.user,
           color: message.color,
-          text:
-            message.type === "sticker"
-              ? "envió un sticker"
-              : message.content,
+          text: message.text,
         });
       }
     };
     const onSystem = (note: SystemNote) =>
       setItems((prev) => [...prev, { kind: "system", note }]);
-    const onHistory = (history: ChatMessage[]) =>
-      setItems((prev) => [
-        ...history.map((message) => ({
-          kind: "message" as const,
-          message,
-          own: message.user === usernameRef.current,
-        })),
-        ...prev,
-      ]);
     const onUsers = ({ users }: { users: OnlineUser[] }) => setOnline(users);
     const onTyping = ({ users }: { users: OnlineUser[] }) =>
       setTypingUsers(users);
@@ -107,14 +88,12 @@ function App() {
     socket.on("users:update", onUsers);
     socket.on("users:typing", onTyping);
     socket.on("joined", onJoined);
-    socket.on("chat:history", onHistory);
     return () => {
       socket.off("chat:message", onMessage);
       socket.off("system", onSystem);
       socket.off("users:update", onUsers);
       socket.off("users:typing", onTyping);
       socket.off("joined", onJoined);
-      socket.off("chat:history", onHistory);
     };
   }, []);
 
@@ -159,13 +138,8 @@ function App() {
     const clean = text.trim();
     if (!clean) return;
     stopTyping();
-    socket.emit("chat:message", { type: "texto", content: clean });
+    socket.emit("chat:message", { text: clean });
     setText("");
-  };
-
-  const pickSticker = (sticker: Sticker) => {
-    setPickerOpen(false);
-    socket.emit("chat:message", { type: "sticker", content: sticker.full });
   };
 
   if (!username) {
@@ -263,17 +237,7 @@ function App() {
                   </span>
                   <span className="message-time">{item.message.time}</span>
                 </span>
-                {item.message.type === "sticker" ? (
-                  <img
-                    className="message-sticker"
-                    src={item.message.content}
-                    alt={`Sticker de ${item.message.user}`}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <p className="message-text">{item.message.content}</p>
-                )}
+                <p className="message-text">{item.message.text}</p>
               </div>
             </div>
           )
@@ -297,15 +261,6 @@ function App() {
           )}
         </div>
         <form className="chat-input" onSubmit={send}>
-          <button
-            type="button"
-            className={`sticker-button ${pickerOpen ? "active" : ""}`}
-            aria-label="Abrir selector de stickers"
-            aria-expanded={pickerOpen}
-            onClick={() => setPickerOpen((open) => !open)}
-          >
-            <SmileyIcon />
-          </button>
           <input
             value={text}
             onChange={(e) => {
@@ -320,12 +275,6 @@ function App() {
           />
           <button type="submit">Enviar</button>
         </form>
-        {pickerOpen && (
-          <StickerPicker
-            onClose={() => setPickerOpen(false)}
-            onPick={pickSticker}
-          />
-        )}
       </footer>
     </main>
   );
