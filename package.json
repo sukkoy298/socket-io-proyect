@@ -1,0 +1,41 @@
+{
+  "name": "socket-io-proyect",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "types": "module",
+  "scripts": {
+    "dev": "nodemon --watch server --ext ts --exec \"tsc server/index.ts && node server/index.js\"",
+    "dev:server": "pnpm dev",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "dev:all": "concurrently -k -n server,frontend -c blue,magenta \"pnpm dev:server\" \"pnpm dev:frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.15.1",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "packageManager": "pnpm@11.15.1",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "morgan": "^1.11.0",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^26.2.0",
+    "concurrently": "^10.0.5",
+    "nodemon": "^3.1.14",
+    "typescript": "^7.0.2"
+  }
+}
