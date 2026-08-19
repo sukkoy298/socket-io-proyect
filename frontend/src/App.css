@@ -383,6 +383,61 @@
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
 }
 
+.sticker-search {
+  display: flex;
+  gap: 6px;
+  padding: 10px 10px 0;
+}
+
+.sticker-search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sticker-search-input::placeholder {
+  color: var(--muted);
+}
+
+.sticker-search-input:focus {
+  outline: none;
+  border-color: rgba(255, 180, 84, 0.5);
+}
+
+.sticker-search-submit {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+}
+
+.sticker-search-clear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.sticker-search-clear:hover {
+  color: var(--text);
+  border-color: rgba(255, 180, 84, 0.5);
+}
+
 .sticker-tabs {
   display: flex;
   gap: 6px;

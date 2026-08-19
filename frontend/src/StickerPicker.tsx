@@ -33,47 +33,91 @@ type Props = {
 
 export function StickerPicker({ onClose, onPick }: Props) {
   const [tab, setTab] = useState<StickerCategory>(STICKER_CATEGORIES[0]);
+  const [query, setQuery] = useState("");
+  const [activeSearch, setActiveSearch] = useState<string | null>(null);
   const [results, setResults] = useState<{
-    tab: StickerCategory;
+    expression: string;
     stickers: Sticker[];
     error: boolean;
-  }>({ tab: STICKER_CATEGORIES[0], stickers: [], error: false });
+  }>({ expression: STICKER_CATEGORIES[0], stickers: [], error: false });
+
+  const expression = activeSearch ?? tab;
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/stickers?expression=${encodeURIComponent(tab)}`)
+    fetch(`/api/stickers?expression=${encodeURIComponent(expression)}`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data: { stickers: Sticker[] }) => {
-        if (!cancelled) setResults({ tab, stickers: data.stickers, error: false });
+        if (!cancelled)
+          setResults({ expression, stickers: data.stickers, error: false });
       })
       .catch(() => {
-        if (!cancelled) setResults({ tab, stickers: [], error: true });
+        if (!cancelled) setResults({ expression, stickers: [], error: true });
       });
     return () => {
       cancelled = true;
     };
-  }, [tab]);
+  }, [expression]);
 
-  const loading = results.tab !== tab;
-  const stickers = results.tab === tab ? results.stickers : [];
-  const error = results.tab === tab && results.error;
+  const loading = results.expression !== expression;
+  const stickers = results.expression === expression ? results.stickers : [];
+  const error = results.expression === expression && results.error;
+
+  const submitSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearch(query.trim() || null);
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    setActiveSearch(null);
+  };
 
   return (
     <div className="sticker-picker-wrap">
       <div className="sticker-backdrop" onClick={onClose} />
       <div className="sticker-picker" role="dialog" aria-label="Selector de stickers">
+        <form className="sticker-search" onSubmit={submitSearch}>
+          <input
+            className="sticker-search-input"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar stickers..."
+            maxLength={30}
+            aria-label="Buscar stickers"
+          />
+          {activeSearch ? (
+            <button
+              type="button"
+              className="sticker-search-clear"
+              onClick={clearSearch}
+              aria-label="Limpiar búsqueda"
+            >
+              ✕
+            </button>
+          ) : (
+            <button type="submit" className="sticker-search-submit">
+              Buscar
+            </button>
+          )}
+        </form>
         <div className="sticker-tabs" role="tablist">
           {STICKER_CATEGORIES.map((category) => (
             <button
               key={category}
               type="button"
               role="tab"
-              aria-selected={category === tab}
-              className={`sticker-tab ${category === tab ? "active" : ""}`}
-              onClick={() => setTab(category)}
+              aria-selected={!activeSearch && category === tab}
+              className={`sticker-tab ${
+                !activeSearch && category === tab ? "active" : ""
+              }`}
+              onClick={() => {
+                setTab(category);
+                setActiveSearch(null);
+              }}
             >
               {category}
             </button>
@@ -88,7 +132,7 @@ export function StickerPicker({ onClose, onPick }: Props) {
               Giphy?
             </p>
           ) : stickers.length === 0 ? (
-            <p className="sticker-note">Sin resultados para {tab}.</p>
+            <p className="sticker-note">Sin resultados para {expression}.</p>
           ) : (
             <div className="sticker-grid">
               {stickers.map((sticker) => (
@@ -100,7 +144,7 @@ export function StickerPicker({ onClose, onPick }: Props) {
                 >
                   <img
                     src={sticker.preview}
-                    alt={`Sticker de ${tab.toLowerCase()}`}
+                    alt={`Sticker de ${expression.toLowerCase()}`}
                     loading="lazy"
                     decoding="async"
                   />
