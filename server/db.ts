@@ -114,6 +114,10 @@ export function registerOrValidateUser(
   }
   const name = validation.cleanName;
 
+  const existingUser = db
+    .prepare("SELECT id, name, color, is_online FROM users WHERE name = ? COLLATE NOCASE")
+    .get(name) as { id: number; name: string; color: string; is_online: number } | undefined;
+
   const onlineColors = new Set(getOnlineColors());
 
   let selectedColor = requestedColor;
@@ -186,7 +190,7 @@ export function registerOrValidateUser(
 
   db.prepare("INSERT INTO users (name, color, is_online) VALUES (?, ?, 1)").run(
     name,
-    selectedColor,
+    selectedColor as string,
   );
 
   return {
