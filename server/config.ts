@@ -11,7 +11,7 @@ export const ALLOWED_PALETTE = [
 
 export type PaletteColor = (typeof ALLOWED_PALETTE)[number];
 
-export const MIN_USERNAME_LENGTH = 8;
+export const MIN_USERNAME_LENGTH = 5;
 export const MAX_USERNAME_LENGTH = 25;
 
 // Regex to block characters sequentially repeated (e.g., aaaaaaa, ttttttt)

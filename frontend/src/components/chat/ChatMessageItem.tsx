@@ -8,7 +8,7 @@ type Props = {
 
 export function ChatMessageItem({ message, own }: Props) {
   return (
-    <div className={`chat-message ${own ? "own" : ""} animate-fade-in-up`}>
+    <div className={`chat-message ${own ? "own" : ""} animate-swing-drop-in`}>
       <div className="message-body">
         <span className="message-meta">
           <span className="message-user" style={{ color: message.color }}>

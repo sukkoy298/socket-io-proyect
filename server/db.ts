@@ -114,11 +114,20 @@ export function registerOrValidateUser(
   }
   const name = validation.cleanName;
 
-  const onlineColors = new Set(getOnlineColors());
-
+  // Check if the name is already in use by another online user
   const existingUser = db
     .prepare("SELECT id, name, color, is_online FROM users WHERE name = ? COLLATE NOCASE")
     .get(name) as { id: number; name: string; color: string; is_online: number } | undefined;
+
+  if (existingUser && existingUser.is_online === 1) {
+    return {
+      success: false,
+      status: 400,
+      error: "Este nombre ya está en uso por otro usuario activo. Elige uno diferente.",
+    };
+  }
+
+  const onlineColors = new Set(getOnlineColors());
 
   let selectedColor = requestedColor;
 

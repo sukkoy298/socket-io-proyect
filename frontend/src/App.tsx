@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "./services/socket";
 import { PALETTE } from "./constants/colors";
 import { JoinScreen } from "./components/join/JoinScreen";
+import { ReloadScreen } from "./components/join/ReloadScreen";
 import { ChatScreen } from "./components/chat/ChatScreen";
 import type { ChatMessage, Item, OnlineUser, SystemNote, Toast } from "./types/chat";
 import type { Sticker } from "./types/stickers";
@@ -19,6 +20,7 @@ function App() {
   const [online, setOnline] = useState<OnlineUser[]>([]);
   const [toast, setToast] = useState<Toast | null>(null);
   const [typingUsers, setTypingUsers] = useState<OnlineUser[]>([]);
+  const [connected, setConnected] = useState(socket.connected);
 
   const usernameRef = useRef("");
   const toastTimer = useRef<number | null>(null);
@@ -128,6 +130,11 @@ function App() {
     socket.on("join:error", onJoinError);
     socket.on("chat:history", onHistory);
 
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+
     return () => {
       socket.off("chat:message", onMessage);
       socket.off("system", onSystem);
@@ -137,6 +144,8 @@ function App() {
       socket.off("joined", onJoined);
       socket.off("join:error", onJoinError);
       socket.off("chat:history", onHistory);
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
     };
   }, []);
 
@@ -205,6 +214,10 @@ function App() {
   const handleSendSticker = (sticker: Sticker) => {
     socket.emit("chat:message", { type: "sticker", content: sticker.full });
   };
+
+  if (!connected && !username) {
+    return <ReloadScreen />;
+  }
 
   if (!username) {
     return (

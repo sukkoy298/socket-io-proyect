@@ -69,7 +69,7 @@ export function JoinScreen({
       <form className="join-card" onSubmit={handleSubmit}>
         <h1>Chat Grupal</h1>
         <p className="join-hint">
-          Ingresa tu nombre (mínimo 8 caracteres) y selecciona tu color activo.
+          Ingresa tu nombre (mínimo 5 caracteres) y selecciona tu color activo.
         </p>
 
         <div className="join-input-group">
@@ -81,7 +81,7 @@ export function JoinScreen({
               setClientError(null);
               onClearError();
             }}
-            placeholder="Tu nombre (mínimo 8 caracteres)"
+            placeholder="Tu nombre (mínimo 5 caracteres)"
             maxLength={MAX_USERNAME_LENGTH}
             autoFocus
           />
@@ -94,10 +94,10 @@ export function JoinScreen({
               {hasRepeated
                 ? "⚠️ Caracteres repetidos secuencialmente no permitidos"
                 : isUnderMin
-                ? "⚠️ Mínimo 8 caracteres requeridos"
+                ? "⚠️ Mínimo 5 caracteres requeridos"
                 : `${cleanName.length}/${MAX_USERNAME_LENGTH} caracteres`}
             </span>
-            <span>Min. 8</span>
+            <span>Min. 5</span>
           </div>
         </div>
 
