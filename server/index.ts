@@ -7,8 +7,20 @@ import { fileURLToPath } from "node:url";
 import { Server } from "socket.io";
 import cors from "cors";
 import morgan from "morgan";
-import { getOrCreateUser, getRecentMessages, saveMessage } from "./db.js";
+import {
+  getAvailableColors,
+  getOnlineColors,
+  getRecentMessages,
+  registerOrValidateUser,
+  resetAllUsersOffline,
+  saveMessage,
+  setUserOnline,
+} from "./db.js";
+import { ALLOWED_PALETTE, validateUsernameFormat } from "./config.js";
 import { getStickers } from "./giphy.js";
+
+// Clean up previous online session states on server restart
+resetAllUsersOffline();
 
 const app = express();
 const httpServer = createServer(app);
@@ -28,6 +40,7 @@ app.use(cors());
 app.use(morgan("dev"));
 app.use(express.json());
 
+// API: Stickers with Giphy
 app.get("/api/stickers", async (req, res) => {
   res.set("Cache-Control", "no-store");
   const expression = String(req.query.expression ?? "")
@@ -44,6 +57,28 @@ app.get("/api/stickers", async (req, res) => {
       error: err instanceof Error ? err.message : "No se pudo consultar Giphy",
     });
   }
+});
+
+// API: Available colors (FASE 1)
+app.get("/api/colors", (_req, res) => {
+  res.set("Cache-Control", "no-store");
+  const available = getAvailableColors();
+  const taken = getOnlineColors();
+  res.json({
+    available,
+    palette: ALLOWED_PALETTE,
+    taken,
+  });
+});
+
+// API: User validation and registration (FASE 1)
+app.post("/api/register", (req, res) => {
+  const { username, color } = req.body ?? {};
+  const result = registerOrValidateUser(username, color);
+  if (!result.success) {
+    return res.status(result.status).json({ error: result.error });
+  }
+  return res.json({ user: result.user, availableColors: getAvailableColors() });
 });
 
 if (existsSync(indexHtml)) {
@@ -63,15 +98,16 @@ if (existsSync(indexHtml)) {
 const users = new Map<string, { name: string; color: string }>();
 const typing = new Map<string, { name: string; color: string }>();
 
-const now = () =>
-  new Date().toLocaleTimeString("es-AR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+// Generates ISO 8601 UTC timestamp (FASE 2)
+const nowISO = () => new Date().toISOString();
 
 const broadcastUsers = () => {
   const list = [...users.values()];
   io.emit("users:update", { users: list, count: list.length });
+  io.emit("colors:update", {
+    available: getAvailableColors(),
+    taken: getOnlineColors(),
+  });
 };
 
 const broadcastTyping = () => {
@@ -79,12 +115,39 @@ const broadcastTyping = () => {
 };
 
 io.on("connection", (socket) => {
-  socket.on("join", (username) => {
-    const user = getOrCreateUser(username);
+  // Send current available colors on connection
+  socket.emit("colors:update", {
+    available: getAvailableColors(),
+    taken: getOnlineColors(),
+  });
+
+  socket.on("colors:get", () => {
+    socket.emit("colors:update", {
+      available: getAvailableColors(),
+      taken: getOnlineColors(),
+    });
+  });
+
+  socket.on("join", (payload: string | { username: string; color?: string }) => {
+    const rawName = typeof payload === "string" ? payload : payload?.username;
+    const requestedColor = typeof payload === "object" ? payload?.color : undefined;
+
+    const result = registerOrValidateUser(rawName, requestedColor);
+    if (!result.success) {
+      socket.emit("join:error", { message: result.error });
+      return;
+    }
+
+    const user = result.user;
     users.set(socket.id, user);
+    setUserOnline(user.name, true);
+
     socket.emit("joined", user);
     socket.emit("chat:history", getRecentMessages());
-    io.emit("system", { text: `${user.name} se unió al chat`, time: now() });
+    io.emit("system", {
+      text: `${user.name} se unió al chat`,
+      time: nowISO(),
+    });
     broadcastUsers();
   });
 
@@ -111,7 +174,7 @@ io.on("connection", (socket) => {
       color: user.color,
       type: kind,
       content: payload,
-      time: now(),
+      time: nowISO(), // ISO 8601 UTC
     };
     saveMessage(message);
     io.emit("chat:message", message);
@@ -134,7 +197,11 @@ io.on("connection", (socket) => {
     if (user) {
       users.delete(socket.id);
       typing.delete(socket.id);
-      io.emit("system", { text: `${user.name} salió del chat`, time: now() });
+      setUserOnline(user.name, false);
+      io.emit("system", {
+        text: `${user.name} salió del chat`,
+        time: nowISO(),
+      });
       broadcastUsers();
       broadcastTyping();
     }
