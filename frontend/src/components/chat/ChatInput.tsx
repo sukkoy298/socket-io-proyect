@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { SmileyIcon } from "../stickers/SmileyIcon";
 
 type Props = {
@@ -17,6 +18,15 @@ export function ChatInput({
   onTogglePicker,
   onSend,
 }: Props) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [text]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSend();
@@ -42,13 +52,14 @@ export function ChatInput({
       </button>
 
       <textarea
+        ref={textareaRef}
         className="chat-input-textarea resize-y min-h-[44px] max-h-32"
         value={text}
         rows={1}
         onChange={(e) => onTextChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        placeholder={`Escribí un mensaje como ${username}... (Shift+Enter para salto de línea)`}
-        maxLength={500}
+        placeholder={`Escribí un mensaje como ${username}...`}
+        maxLength={900}
         autoFocus
       />
 
