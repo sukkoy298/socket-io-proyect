@@ -628,7 +628,7 @@
   gap: 8px;
   overflow-x: auto;
   padding: 10px;
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   scrollbar-width: thin;
   flex-wrap: nowrap;
 }
@@ -709,6 +709,71 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.sticker-cell-wrap {
+  position: relative;
+}
+
+.sticker-fav {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 16px;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    color 0.15s ease,
+    text-shadow 0.15s ease;
+}
+
+.sticker-cell-wrap:hover .sticker-fav,
+.sticker-fav:focus-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.sticker-fav:hover {
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  transform: scale(1.15);
+}
+
+.sticker-fav.active {
+  color: #ff4d6d;
+  opacity: 1;
+  transform: scale(1.05);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.sticker-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-ink);
+  background: rgba(255, 180, 84, 0.35);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.sticker-tab.active .sticker-tab-count {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .message-sticker {
