@@ -15,6 +15,13 @@ export type SystemNote = {
 export type OnlineUser = {
   name: string;
   color: string;
+  isAdmin?: boolean;
+};
+
+export type RoomInfo = {
+  name: string;
+  createdBy?: string;
+  userCount: number;
 };
 
 export type Item =

@@ -11,9 +11,10 @@ type Props = {
   availableColors: string[];
   takenColors: string[];
   joinError: string | null;
+  needsAdminPassword: boolean;
   onSelectColor: (color: string) => void;
   onClearError: () => void;
-  onJoin: (username: string, color: string) => void;
+  onJoin: (username: string, color: string, password?: string) => void;
 };
 
 export function JoinScreen({
@@ -21,11 +22,13 @@ export function JoinScreen({
   availableColors,
   takenColors,
   joinError,
+  needsAdminPassword,
   onSelectColor,
   onClearError,
   onJoin,
 }: Props) {
   const [nameInput, setNameInput] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
 
   const cleanName = nameInput.trim();
@@ -59,7 +62,7 @@ export function JoinScreen({
       return;
     }
 
-    onJoin(cleanName, selectedColor);
+    onJoin(cleanName, selectedColor, adminPassword || undefined);
   };
 
   const displayedError = clientError || joinError;
@@ -100,6 +103,26 @@ export function JoinScreen({
             <span>Min. 5</span>
           </div>
         </div>
+
+        {needsAdminPassword && (
+          <div className="join-input-group">
+            <input
+              className="join-input"
+              type="password"
+              value={adminPassword}
+              onChange={(e) => {
+                setAdminPassword(e.target.value);
+                setClientError(null);
+                onClearError();
+              }}
+              placeholder="Contraseña de administrador"
+              autoFocus
+            />
+            <div className="join-input-hint">
+              <span>🔐 Este nombre corresponde al administrador</span>
+            </div>
+          </div>
+        )}
 
         <ColorPicker
           selectedColor={selectedColor}

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   ALLOWED_PALETTE,
+  DEFAULT_ROOM,
   validateUsernameFormat,
 } from "./config.js";
 
@@ -38,9 +39,40 @@ db.exec(`
     color TEXT NOT NULL,
     type TEXT NOT NULL DEFAULT 'texto',
     content TEXT NOT NULL,
-    time TEXT NOT NULL
+    time TEXT NOT NULL,
+    room TEXT NOT NULL DEFAULT '${DEFAULT_ROOM}'
   )
 `);
+
+// Safe migration in case the existing DB did not have room column on messages
+try {
+  const msgTableInfo = db.prepare("PRAGMA table_info(messages)").all() as Array<{ name: string }>;
+  const hasRoom = msgTableInfo.some((col) => col.name === "room");
+  if (!hasRoom) {
+    db.exec(`ALTER TABLE messages ADD COLUMN room TEXT NOT NULL DEFAULT '${DEFAULT_ROOM}'`);
+  }
+} catch (e) {
+  console.warn("Messages migration notice:", e);
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    created_by TEXT NOT NULL DEFAULT 'sistema',
+    created_at TEXT NOT NULL
+  )
+`);
+
+// Seed the default room if there are no rooms yet
+const roomSeed = db.prepare("SELECT COUNT(*) AS n FROM rooms").get() as { n: number };
+if (roomSeed.n === 0) {
+  db.prepare("INSERT INTO rooms (name, created_by, created_at) VALUES (?, ?, ?)").run(
+    DEFAULT_ROOM,
+    "sistema",
+    new Date().toISOString(),
+  );
+}
 
 export type StoredMessage = {
   id: string;
@@ -49,11 +81,19 @@ export type StoredMessage = {
   type: "texto" | "sticker";
   content: string;
   time: string; // ISO 8601 UTC string: YYYY-MM-DDTHH:mm:ss.sssZ
+  room?: string;
+};
+
+export type Room = {
+  id: number;
+  name: string;
+  created_by: string;
+  created_at: string;
 };
 
 export function saveMessage(message: StoredMessage) {
   db.prepare(
-    "INSERT OR REPLACE INTO messages (id, user, color, type, content, time) VALUES (?, ?, ?, ?, ?, ?)",
+    "INSERT OR REPLACE INTO messages (id, user, color, type, content, time, room) VALUES (?, ?, ?, ?, ?, ?, ?)",
   ).run(
     message.id,
     message.user,
@@ -61,16 +101,36 @@ export function saveMessage(message: StoredMessage) {
     message.type,
     message.content,
     message.time,
+    message.room ?? DEFAULT_ROOM,
   );
 }
 
-export function getRecentMessages(limit = 50): StoredMessage[] {
+export function getRecentMessages(room = DEFAULT_ROOM, limit = 50): StoredMessage[] {
   return db
     .prepare(
-      "SELECT id, user, color, type, content, time FROM messages ORDER BY rowid DESC LIMIT ?",
+      "SELECT id, user, color, type, content, time FROM messages WHERE room = ? ORDER BY rowid DESC LIMIT ?",
     )
-    .all(limit)
+    .all(room, limit)
     .reverse() as StoredMessage[];
+}
+
+export function listRooms(): Room[] {
+  return db
+    .prepare("SELECT id, name, created_by, created_at FROM rooms ORDER BY id ASC")
+    .all() as Room[];
+}
+
+export function roomExists(rawName: string): boolean {
+  return !!db.prepare("SELECT id FROM rooms WHERE name = ? COLLATE NOCASE").get(String(rawName).trim());
+}
+
+export function createRoom(name: string, createdBy: string): Room {
+  db.prepare("INSERT INTO rooms (name, created_by, created_at) VALUES (?, ?, ?)").run(
+    name,
+    createdBy,
+    new Date().toISOString(),
+  );
+  return db.prepare("SELECT id, name, created_by, created_at FROM rooms WHERE name = ? COLLATE NOCASE").get(name) as Room;
 }
 
 export function resetAllUsersOffline() {

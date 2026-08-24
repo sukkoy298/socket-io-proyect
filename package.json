@@ -5,12 +5,12 @@
   "main": "index.js",
   "types": "module",
   "scripts": {
-    "dev": "nodemon --watch server --ext ts --exec \"tsc server/index.ts && node server/index.js\"",
+    "dev": "nodemon --watch server --ext ts --exec \"tsc server/index.ts && node --env-file-if-exists=.env server/index.js\"",
     "dev:server": "pnpm dev",
     "dev:frontend": "pnpm --dir frontend dev",
     "dev:all": "concurrently -k -n server,frontend -c blue,magenta \"pnpm dev:server\" \"pnpm dev:frontend\"",
     "build": "tsc server/index.ts && pnpm --dir frontend build",
-    "start": "node server/index.js",
+    "start": "node --env-file-if-exists=.env server/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
