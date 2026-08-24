@@ -166,13 +166,18 @@ const broadcastTyping = () => {
   const byRoom = new Map<string, { name: string; color: string }[]>();
   for (const [socketId, t] of typing) {
     const session = users.get(socketId);
-    if (!session) continue;
+    if (!session || !session.room) continue;
     const list = byRoom.get(session.room) ?? [];
     list.push(t);
     byRoom.set(session.room, list);
   }
-  for (const [room, list] of byRoom) {
-    io.to(room).emit("users:typing", { users: list });
+  // Always update every occupied room (even when nobody is typing),
+  // otherwise the last room to clear its typist never gets the empty state
+  const activeRooms = new Set(
+    [...users.values()].map((u) => u.room).filter(Boolean),
+  );
+  for (const room of activeRooms) {
+    io.to(room).emit("users:typing", { users: byRoom.get(room) ?? [] });
   }
 };
 
