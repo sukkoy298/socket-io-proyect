@@ -790,17 +790,213 @@
   border-bottom-right-radius: 4px;
 }
 
-@media (max-width: 480px) {
-  .message-body {
-    max-width: 88%;
+/* Mobile / tablet landscape: tighten gaps, allow header to wrap */
+@media (max-width: 640px) {
+  .chat-header {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    gap: 10px;
+    row-gap: 10px;
   }
 
-  .chat-header {
-    padding-inline: 14px;
+  .chat-header h1 {
+    font-size: 16px;
+    letter-spacing: -0.2px;
+  }
+
+  .chat-me {
+    font-size: 13px;
+  }
+
+  .chat-header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .chat-header-right {
+    flex: 0 0 auto;
+    gap: 8px;
+  }
+
+  .admin-badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    letter-spacing: 0.6px;
+  }
+
+  .room-selector {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .room-selector-select {
+    max-width: 150px;
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+
+  .room-new-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .room-create-input {
+    width: 120px;
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+
+  .presence {
+    gap: 6px;
+    font-size: 11px;
+  }
+
+  .presence-toggle {
+    padding: 5px 7px;
+    font-size: 14px;
+  }
+
+  .chat-list {
+    padding: 16px 14px;
+    gap: 12px;
+  }
+
+  .chat-typing {
+    padding: 4px 14px 0;
+    font-size: 12px;
   }
 
   .chat-input {
-    padding-inline: 14px;
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .chat-input-textarea {
+    font-size: 16px; /* evita el auto-zoom de iOS al enfocar */
+    padding: 9px 12px;
+    min-height: 42px;
+    max-height: 112px;
+  }
+
+  .chat-send-btn {
+    height: 42px;
+    padding: 0 14px;
+    font-size: 13px;
+  }
+
+  .sticker-button {
+    width: 42px;
+    height: 42px;
+  }
+
+  .sticker-picker-wrap {
+    padding: 0 14px 8px;
+  }
+}
+
+/* Small phones: aprieta más el header y el input */
+@media (max-width: 480px) {
+  .message-body {
+    max-width: 90%;
+  }
+
+  .chat-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .chat-header h1 {
+    font-size: 15px;
+  }
+
+  .chat-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .room-selector-label {
+    display: none;
+  }
+
+  .room-selector-select {
+    max-width: 130px;
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+
+  .presence-count {
+    display: none;
+  }
+
+  .chat-list {
+    padding: 14px 12px;
+    gap: 10px;
+  }
+
+  .chat-message-text {
+    font-size: 14.5px;
+  }
+
+  .chat-typing {
+    padding: 2px 12px 0;
+  }
+
+  .chat-input {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .chat-input-textarea {
+    min-height: 40px;
+    padding: 8px 10px;
+  }
+
+  .chat-send-btn {
+    height: 40px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .sticker-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sticker-picker-wrap {
+    padding: 0 12px 8px;
+  }
+
+  .sticker-picker {
+    max-height: min(320px, 50svh);
+  }
+
+  .sticker-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 10px;
+  }
+}
+
+/* Phones muy angostos (320-360px): modo compacto */
+@media (max-width: 360px) {
+  .chat-header h1 {
+    font-size: 14px;
+  }
+
+  .chat-send-btn {
+    padding: 0 10px;
+    font-size: 12.5px;
+  }
+
+  .sticker-button {
+    width: 38px;
+    height: 38px;
+  }
+
+  .chat-input-textarea {
+    min-height: 38px;
   }
 }
 
