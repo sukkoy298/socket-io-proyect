@@ -1,28 +1,37 @@
 import type { OnlineUser, RoomInfo } from "../../types/chat";
 import { RoomSelector } from "./RoomSelector";
+import { ProfileMenu } from "./ProfileMenu";
 
 type Props = {
   username: string;
   myColor: string;
-  online: OnlineUser[];
   isAdmin: boolean;
+  online: OnlineUser[];
   currentRoom: string;
   rooms: RoomInfo[];
+  profileOpen: boolean;
   onTogglePanel: () => void;
+  onToggleProfile: () => void;
+  onCloseProfile: () => void;
   onSwitchRoom: (room: string) => void;
   onCreateRoom: (name: string) => void;
+  onLogout: () => void;
 };
 
 export function ChatHeader({
   username,
   myColor,
-  online,
   isAdmin,
+  online,
   currentRoom,
   rooms,
+  profileOpen,
   onTogglePanel,
+  onToggleProfile,
+  onCloseProfile,
   onSwitchRoom,
   onCreateRoom,
+  onLogout,
 }: Props) {
   return (
     <header className="chat-header">
@@ -68,6 +77,15 @@ export function ChatHeader({
         >
           👥
         </button>
+        <ProfileMenu
+          username={username}
+          myColor={myColor}
+          isAdmin={isAdmin}
+          open={profileOpen}
+          onToggle={onToggleProfile}
+          onClose={onCloseProfile}
+          onLogout={onLogout}
+        />
       </div>
     </header>
   );

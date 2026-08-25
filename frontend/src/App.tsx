@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { socket } from "./services/socket";
 import { PALETTE } from "./constants/colors";
 import { JoinScreen } from "./components/join/JoinScreen";
@@ -14,18 +14,30 @@ import type {
   Toast,
 } from "./types/chat";
 import type { Sticker } from "./types/stickers";
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+  type PersistedSession,
+} from "./utils/session";
 import "./App.css";
 
 function App() {
-  const [selectedColor, setSelectedColor] = useState<string>("");
+  const initialSession = useMemo(() => loadSession(), []);
+
+  const [selectedColor, setSelectedColor] = useState<string>(
+    initialSession?.color && (PALETTE as readonly string[]).includes(initialSession.color)
+      ? initialSession.color
+      : "",
+  );
   const [availableColors, setAvailableColors] = useState<string[]>([...PALETTE]);
   const [takenColors, setTakenColors] = useState<string[]>([]);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [needsAdminPassword, setNeedsAdminPassword] = useState(false);
 
-  const [username, setUsername] = useState("");
-  const [myColor, setMyColor] = useState("#9aa0b3");
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [username, setUsername] = useState(initialSession?.username ?? "");
+  const [myColor, setMyColor] = useState<string>(initialSession?.color ?? "#9aa0b3");
+  const [isAdmin, setIsAdmin] = useState(initialSession?.isAdmin ?? false);
   const [items, setItems] = useState<Item[]>([]);
   const [online, setOnline] = useState<OnlineUser[]>([]);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
@@ -34,10 +46,15 @@ function App() {
   const [toast, setToast] = useState<Toast | null>(null);
   const [typingUsers, setTypingUsers] = useState<OnlineUser[]>([]);
   const [connected, setConnected] = useState(socket.connected);
+  const [reconnecting, setReconnecting] = useState<boolean>(!!initialSession);
 
-  const usernameRef = useRef("");
+  const usernameRef = useRef(initialSession?.username ?? "");
   const toastTimer = useRef<number | null>(null);
   const typingTimer = useRef<number | null>(null);
+
+  // Refs de sesión que persisten entre renders (sin disparar re-renders)
+  const sessionRef = useRef<PersistedSession | null>(initialSession);
+  const joinedRef = useRef<boolean>(false);
 
   // Fetch initial colors from API (FASE 1)
   useEffect(() => {
@@ -135,10 +152,20 @@ function App() {
       setTypingUsers(users);
 
     const onJoined = (u: { name: string; color: string; isAdmin?: boolean }) => {
+      const adminFlag = !!u.isAdmin;
+      usernameRef.current = u.name;
+      sessionRef.current = {
+        username: u.name,
+        color: u.color,
+        isAdmin: adminFlag,
+      };
+      joinedRef.current = true;
+      saveSession(sessionRef.current);
       setMyColor(u.color);
-      setIsAdmin(!!u.isAdmin);
+      setIsAdmin(adminFlag);
       setJoinError(null);
       setNeedsAdminPassword(false);
+      setReconnecting(false);
     };
 
     const onJoinError = ({
@@ -148,6 +175,26 @@ function App() {
       message: string;
       code?: string;
     }) => {
+      // Si veníamos de un auto-rejoin y falló, limpiamos la sesión persistida
+      // y mandamos al usuario a la pantalla de join (con sus datos preservados en el error).
+      if (!joinedRef.current && sessionRef.current) {
+        const previous = sessionRef.current;
+        clearSession();
+        sessionRef.current = null;
+        setReconnecting(false);
+        setUsername("");
+        setMyColor("#9aa0b3");
+        setIsAdmin(false);
+        // Pre-seleccionamos su nombre/color anterior para que reingresar sea 1 click.
+        usernameRef.current = "";
+        if ((PALETTE as readonly string[]).includes(previous.color)) setSelectedColor(previous.color);
+        setJoinError(message);
+        if (code === "admin_password_required") {
+          setNeedsAdminPassword(true);
+        }
+        return;
+      }
+
       setJoinError(message);
       if (code === "admin_password_required") {
         setNeedsAdminPassword(true);
@@ -158,6 +205,10 @@ function App() {
     };
 
     const onKicked = ({ by }: { by: string; room: string }) => {
+      // Kick explícito del admin: invalidamos la sesión persistida.
+      clearSession();
+      sessionRef.current = null;
+      joinedRef.current = false;
       usernameRef.current = "";
       setUsername("");
       setIsAdmin(false);
@@ -181,8 +232,25 @@ function App() {
     socket.on("kicked", onKicked);
     socket.on("chat:history", onHistory);
 
-    const onConnect = () => setConnected(true);
-    const onDisconnect = () => setConnected(false);
+    const onConnect = () => {
+      setConnected(true);
+      // Si teníamos una sesión previa y el socket se reconectó
+      // (recarga de página o pérdida de conexión), re-unimos silenciosamente.
+      const pending = sessionRef.current;
+      if (pending) {
+        joinedRef.current = false;
+        setReconnecting(true);
+        socket.emit("join", {
+          username: pending.username,
+          color: pending.color,
+        });
+      }
+    };
+    const onDisconnect = () => {
+      setConnected(false);
+      // El server nos va a marcar offline; cuando volvamos a conectar hay que re-unir.
+      joinedRef.current = false;
+    };
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
@@ -202,6 +270,18 @@ function App() {
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
     };
+  }, []);
+
+  // Si en el primer mount el socket ya estaba conectado (caso típico al recargar
+  // la pestaña) y hay sesión guardada, disparamos el rejoin manualmente.
+  useEffect(() => {
+    if (socket.connected && sessionRef.current && !joinedRef.current) {
+      setReconnecting(true);
+      socket.emit("join", {
+        username: sessionRef.current.username,
+        color: sessionRef.current.color,
+      });
+    }
   }, []);
 
   // Auto-dismiss toast timer
@@ -231,6 +311,7 @@ function App() {
     password?: string,
   ) => {
     setJoinError(null);
+    setReconnecting(false);
 
     // A kicked session was disconnected server-side: reconnect first
     // (Socket.IO clients do NOT auto-reconnect after server disconnect)
@@ -310,6 +391,56 @@ function App() {
     socket.emit("chat:message", { type: "sticker", content: sticker.full });
   };
 
+  // Logout manual: el usuario decide salir del chat desde el profile menu.
+  // Limpiamos sesión persistida, desconectamos el socket (para que el server
+  // nos marque offline), y reseteamos el estado local.
+  const handleLogout = () => {
+    clearSession();
+    sessionRef.current = null;
+    joinedRef.current = false;
+    usernameRef.current = "";
+    // No usamos removeAllListeners() porque rompe los handlers internos de
+    // socket.io (auto-reconnect). Sólo desconectamos: el server nos marca
+    // offline y el siguiente join se hace explícito desde el JoinScreen.
+    socket.disconnect();
+    setUsername("");
+    setMyColor("#9aa0b3");
+    setIsAdmin(false);
+    setItems([]);
+    setOnline([]);
+    setRooms([]);
+    setTypingUsers([]);
+    setCurrentRoom("");
+    setKickedBy(null);
+    setReconnecting(false);
+    setJoinError(null);
+    setNeedsAdminPassword(false);
+  };
+
+  // Estado de reconexión: hay sesión guardada pero todavía no terminó el round-trip.
+  if (reconnecting && !kickedBy) {
+    return (
+      <main className="join">
+        <div className="join-card" style={{ textAlign: "center", gap: 14 }}>
+          <h1>Chat Grupal</h1>
+          <p className="join-hint">
+            Reanudando tu sesión como{" "}
+            <strong style={{ color: myColor }}>{username || initialSession?.username}</strong>
+            ...
+          </p>
+          <button
+            className="join-button"
+            type="button"
+            onClick={handleLogout}
+            style={{ background: "var(--surface-2)", color: "var(--text)" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (!connected && !username && !kickedBy) {
     return <ReloadScreen />;
   }
@@ -352,6 +483,7 @@ function App() {
       onSwitchRoom={handleSwitchRoom}
       onCreateRoom={handleCreateRoom}
       onKickUser={handleKickUser}
+      onLogout={handleLogout}
     />
   );
 }

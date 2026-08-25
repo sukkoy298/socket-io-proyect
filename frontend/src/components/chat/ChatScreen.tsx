@@ -27,6 +27,7 @@ type Props = {
   onSwitchRoom: (room: string) => void;
   onCreateRoom: (name: string) => void;
   onKickUser: (name: string) => void;
+  onLogout: () => void;
 };
 
 export function ChatScreen({
@@ -47,10 +48,12 @@ export function ChatScreen({
   onSwitchRoom,
   onCreateRoom,
   onKickUser,
+  onLogout,
 }: Props) {
   const [text, setText] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -74,6 +77,8 @@ export function ChatScreen({
     onSendSticker(sticker);
   };
 
+  const closeProfile = () => setProfileOpen(false);
+
   return (
     <main className="chat">
       {toast && <ChatToast toast={toast} onDismiss={onDismissToast} />}
@@ -81,13 +86,17 @@ export function ChatScreen({
       <ChatHeader
         username={username}
         myColor={myColor}
-        online={online}
         isAdmin={isAdmin}
+        online={online}
         currentRoom={currentRoom}
         rooms={rooms}
+        profileOpen={profileOpen}
         onTogglePanel={() => setPanelOpen((open) => !open)}
+        onToggleProfile={() => setProfileOpen((open) => !open)}
+        onCloseProfile={closeProfile}
         onSwitchRoom={onSwitchRoom}
         onCreateRoom={onCreateRoom}
+        onLogout={onLogout}
       />
 
       <ChatMessageList items={items} />
