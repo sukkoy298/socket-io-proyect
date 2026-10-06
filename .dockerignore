@@ -5,5 +5,7 @@ frontend/pnpm-lock.yaml
 server/*.js
 server/chat.db
 .git
+.env
+.env.*
 *.log
 .DS_Store

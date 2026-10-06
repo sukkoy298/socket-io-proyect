@@ -26,6 +26,7 @@ import {
   validateRoomName,
 } from "./config.js";
 import { getStickers } from "./giphy.js";
+import { RAGBot } from "./bot.js";
 
 // Clean up previous online session states on server restart
 resetAllUsersOffline();
@@ -122,6 +123,10 @@ type SessionUser = {
 const users = new Map<string, SessionUser & { room: string }>();
 const typing = new Map<string, { name: string; color: string }>();
 
+// Bot RAG (usuario virtual). Se inicializa más abajo cuando ya existen
+// las funciones de broadcast de las que depende.
+let bot: RAGBot | null = null;
+
 // Generates ISO 8601 UTC timestamp (FASE 2)
 const nowISO = () => new Date().toISOString();
 
@@ -140,7 +145,8 @@ const roomsWithCounts = () =>
   listRooms().map((r) => ({
     name: r.name,
     createdBy: r.created_by,
-    userCount: usersInRoom(r.name).length,
+    userCount:
+      usersInRoom(r.name).length + (bot?.enabledIn(r.name) ? 1 : 0),
   }));
 
 const emitUsersUpdate = (rooms: Iterable<string | undefined>) => {
@@ -152,6 +158,7 @@ const emitUsersUpdate = (rooms: Iterable<string | undefined>) => {
       color,
       isAdmin,
     }));
+    if (bot?.enabledIn(room)) list.push(bot.publicUser());
     io.to(room).emit("users:update", { room, users: list, count: list.length });
   }
   // Keep every client's room list/counters fresh
@@ -177,9 +184,41 @@ const broadcastTyping = () => {
     [...users.values()].map((u) => u.room).filter(Boolean),
   );
   for (const room of activeRooms) {
-    io.to(room).emit("users:typing", { users: byRoom.get(room) ?? [] });
+    const list = [...(byRoom.get(room) ?? [])];
+    if (bot?.isTyping(room)) {
+      list.push({ name: bot.name, color: bot.color });
+    }
+    io.to(room).emit("users:typing", { users: list });
   }
 };
+
+// Bot RAG: participa en las salas y responde consultando el backend.
+if ((process.env.BOT_ENABLED ?? "true") !== "false") {
+  bot = new RAGBot(
+    io,
+    {
+      name: process.env.BOT_NAME ?? "Sky Bot",
+      color: process.env.BOT_COLOR ?? "#38bdf8",
+      baseUrl: process.env.BOT_BASE_URL ?? "http://127.0.0.1:8787",
+      apiKey: process.env.BOT_API_KEY || undefined,
+      model: process.env.BOT_MODEL || undefined,
+      trigger: process.env.BOT_TRIGGER === "all" ? "all" : "mention",
+      rooms: (process.env.BOT_ROOMS ?? "")
+        .split(",")
+        .map((room) => room.trim())
+        .filter(Boolean),
+      maxHistory: Number(process.env.BOT_MAX_HISTORY ?? 12),
+    },
+    {
+      saveMessage,
+      getRecentMessages,
+      onTypingChange: broadcastTyping,
+    },
+  );
+  console.log(
+    `Bot RAG activo: ${bot.name} -> ${process.env.BOT_BASE_URL ?? "http://127.0.0.1:8787"}`,
+  );
+}
 
 // Removes a user session and announces it in its room
 const removeSocketSession = (socketId: string, leaveText?: string) => {
@@ -374,6 +413,11 @@ io.on("connection", (socket) => {
     };
     saveMessage({ ...message, room: session.room });
     io.to(session.room).emit("chat:message", message);
+
+    // El bot RAG escucha los mensajes de texto de la sala.
+    if (kind === "texto") {
+      void bot?.onUserMessage(session.room, payload);
+    }
   });
 
   socket.on("typing", () => {
